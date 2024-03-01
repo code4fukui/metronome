@@ -1,0 +1,108 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width">
+<title>metoronome</title>
+</head><body>
+<h1>metoronome</h1>
+
+<div id="selkinds"></div>
+<button id=btnstart>START</button>
+<button id=btnstop>STOP</button>
+<br>
+<span class=label>VOL</span><input class=num type=text id=spannum value=10%><input type=range id=range min=0 max=1 value=0.1 step=0.01><br>
+<span class=label>TEMPO</span><input class=num type=text id=spannum3 value=120><input type=range id=range3 min=10 max=1000 value=120 step=.1><br>
+<hr>
+<a href=https://github.com/code4fukui/audioworklet-test/>src on GitHub</a><br>
+
+<script type="module">
+import { SamplesNode } from "./SamplesNode.js";
+import { initDeviceSelects } from "./initDeviceSelects.js";
+
+const kinds = await initDeviceSelects(selkinds, "audiooutput");
+
+let context = null;
+
+const start = async () => {
+  if (context) {
+    await stop();
+  }
+  const sampleRate = 48000; // mac default
+  const sinkId = kinds["audiooutput"].value;
+  context = new AudioContext({ sampleRate, sinkId });
+  console.log(context);
+
+  const node = await SamplesNode.create(context);
+  const fns = [
+    "./switch1.wav",
+    "./bell1.wav",
+  ];
+  node.setWaveFiles(fns);
+
+  node.connect(context.destination);
+
+  range.oninput = () => {
+    spannum.value = (range.value * 100).toFixed(0) + "%";
+    node.setVolume(range.value);
+  };
+  range.oninput();
+  
+  let pitch = 1;
+
+  setTimeout(() => {
+    let tid1 = node.noteOn(0, 0.1, 1, 0, 120);
+    let tid2 = node.noteOn(1, 0.1, 1, 0, 120 / 4);
+
+    range3.oninput = () => {
+      spannum3.value = range3.value;
+      if (!tid1 || !tid2) return;
+      const tempo = parseFloat(range3.value);
+      node.noteOn(tid1, 0.1, 1, 0, tempo);
+      node.noteOn(tid2, 0.1, 1, 0, tempo / 4);
+    };
+    spannum3.onchange = () => {
+      range3.value = spannum3.value;
+      range3.oninput();
+    };
+    range3.oninput();
+  }, 100);
+
+};
+const stop = async () => {
+  if (!context) return;
+  await context.close();
+  context = null;
+};
+
+btnstart.onclick = start;
+btnstop.onclick = stop;
+
+</script>
+
+<style>
+body {
+  margin: 1.5em;
+  font-family: sans-serif;
+  font-size: 120%;
+  box-sizing: border-box;
+}
+.label {
+  display: inline-block;
+  width: 100px;
+}
+.num {
+  display: inline-block;
+  width: 80px;
+  text-align: right;
+}
+button {
+  margin-bottom: 1em;
+}
+input[type=text] {
+  font-size: 20px;
+}
+input[type=range] {
+  width: calc(80vw - 180px);
+  margin-left: 1em;
+}
+a {
+  color: gray !important;
+}
+</style>
